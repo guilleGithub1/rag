@@ -1,0 +1,45 @@
+name: myragenvironment  # Especifica el nombre de la app
+
+services:
+  backend:
+    build: .  # Construye la imagen Docker desde el Dockerfile en el directorio actual
+    ports:
+      - "8000:8000"  # Mapea el puerto 8000 del contenedor al puerto 8000 del host
+    depends_on:
+      - db  # Espera a que el servicio "db" esté en ejecución
+    environment:
+      - POSTGRES_HOST=db  # Define la variable de entorno POSTGRES_HOST
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=mydatabase
+    image: rag-environment
+    volumes: 
+      - .:/app  # Monta el directorio actual en /app dentro del contenedor
+    command: bash  # Inicia una sesión de Bash
+    stdin_open: true  # Equivalente a -i en docker run
+    tty: true  # Equivalente a -t en docker run
+
+  db:
+    image: postgres:latest  # Usa la imagen oficial de PostgreSQL
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=mydatabase
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Persistencia de datos
+
+  pgadmin:
+    image: dpage/pgadmin4:latest  # Usa la imagen oficial de pgAdmin
+    ports:
+      - "5050:80"  # Mapea el puerto 5050 del contenedor al puerto 80 del host
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    depends_on:
+      - db  # Espera a que el servicio "db" esté en ejecución
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin  # Persistencia de datos
+
+volumes:
+  postgres_data:  # Define un volumen llamado "postgres_data"
+  pgadmin_data:  # Define un volumen llamado "pgadmin_data"

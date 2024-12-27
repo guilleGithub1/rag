@@ -14,7 +14,7 @@ services:
       - POSTGRES_DB=mydatabase
     image: rag-environment
     volumes: 
-      - .:/app  # Monta el directorio actual en /app dentro del contenedor
+      - .:/rag  # Monta el directorio actual en /rag dentro del contenedor
     command: bash  # Inicia una sesión de Bash
     stdin_open: true  # Equivalente a -i en docker run
     tty: true  # Equivalente a -t en docker run

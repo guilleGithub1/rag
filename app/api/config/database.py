@@ -4,7 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String
 
 # URL de conexión a la base de datos (ajusta según tu configuración)
-DATABASE_URL = "postgresql://usuario:contraseña@host:5432/nombre_de_la_base_de_datos"
+DATABASE_URL = "postgresql://postgres:postgres@db:5432/mydatabase"
 # Ejemplo:
 # DATABASE_URL = "postgresql://postgres:admin@localhost:5432/mydatabase"
 

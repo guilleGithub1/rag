@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from routes import user as user_routes
+from routes import resumen as resumen_routes
 from config.database import create_database
 
 app = FastAPI()
 
 # Incluye los enrutadores (routers) definidos en la carpeta routes
-app.include_router(user_routes.router)
+app.include_router(resumen_routes.router)
 
 #Crea las tablas de la base de datos
 create_database()

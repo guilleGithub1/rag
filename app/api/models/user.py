@@ -1,8 +1,11 @@
 from sqlalchemy import Column, Integer, String
-from config.database import Base
+from sqlalchemy.ext.declarative import declarative_base
+
 from pydantic import BaseModel
 from typing import Optional
+Base = declarative_base()
 
+# Modelo para la base de datos
 # Modelo para la base de datos
 class UserDB(Base):
     __tablename__ = "users"

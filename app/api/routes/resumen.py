@@ -1,12 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models.user import User
+from models.resumen import Resumen
 from services.resumen import ResumenService  # Importamos la clase
 from sqlalchemy.orm import Session
-from config.database import get_db
+from config.s3 import S3Manager
+from boto3 import client
 
 router = APIRouter(prefix="/resumenes", tags=["resumen"])
 
-@router.get("/", response_model=User, status_code=201)
-async def get_archivos(user: User, db: Session = Depends(get_db)):
-    json=ResumenService.get_archivos_onedrive('dfsdfds')
-    return json
+@router.get("/", response_model=Resumen, status_code=201)
+async def get_archivos_s3(Resumen: None, s3: client = Depends(S3Manager.get_s3_session)):
+        service = ResumenService(s3)
+        archivos = service.get_s3_files()
+        return archivos

@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from models.user import User
 from services.user import UserService  # Importamos la clase
 from sqlalchemy.orm import Session
-from config.database import get_db
 
+'''
 router = APIRouter(prefix="/users", tags=["users"])
 
 @router.post("/", response_model=User, status_code=201)
@@ -41,3 +41,5 @@ async def delete_user(user_id:int, db: Session = Depends(get_db)):
     if not user:
       raise HTTPException(status_code=404, detail="User not found")
     return user
+
+    '''

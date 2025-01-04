@@ -1,8 +1,10 @@
-from sqlalchemy import Column, Integer, String, Date, ForeignKey
-from config.database import Base
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, DateTime
+from datetime import date
+from sqlalchemy.ext.declarative import declarative_base
 from pydantic import BaseModel
 from typing import Optional
-
+# Modelo para la base de datos
+Base = declarative_base()
 # Modelo para la base de datos
 class GastoDB(Base):
     __tablename__ = "gastos"
@@ -36,6 +38,6 @@ class CuotaDB(Base):
 # Modelo para la API (Pydantic)
 class Resumen(BaseModel):
     id: Optional[int] = None
-    name: str
-    email: str
-    age: int
+    fecha: date
+    banco: str
+    marca: str

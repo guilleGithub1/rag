@@ -33,7 +33,7 @@ app = PublicClientApplication(
     CLIENT_ID,
     authority=AUTHORITY
 )
-
+"""
 # Obtener el token de acceso
 result = None
 accounts = app.get_accounts()
@@ -100,3 +100,4 @@ files = get_files_in_folder(folder_id)
 if files:
     for file in files['value']:
         print(f"Nombre: {file['name']}, ID: {file['id']}")
+"""

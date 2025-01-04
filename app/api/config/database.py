@@ -2,32 +2,37 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String
+from contextlib import contextmanager
 
-# URL de conexión a la base de datos (ajusta según tu configuración)
-DATABASE_URL = "postgresql://postgres:postgres@db:5432/mydatabase"
-# Ejemplo:
-# DATABASE_URL = "postgresql://postgres:admin@localhost:5432/mydatabase"
+class DatabaseManager:
+    def __init__(self, database_url: str = None):
+        self.database_url = database_url or "postgresql://postgres:postgres@db:5432/mydatabase"
+        self.engine = create_engine(self.database_url)
+        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self.Base = declarative_base()
 
-# Crear el motor de la base de datos
-engine = create_engine(DATABASE_URL)
+    def create_database(self):
+        """Crea todas las tablas definidas"""
+        try:
+            self.Base.metadata.create_all(bind=self.engine)
+            return True
+        except Exception as e:
+            print(f"Error al crear la base de datos: {e}")
+            return False
 
-# Crear una clase base para los modelos
-Base = declarative_base()
+    @contextmanager
+    def get_db(self):
+        """Proporciona una sesión de base de datos"""
+        db = self.SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
 
-
-# Crear una clase para manejar las sesiones de la base de datos
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-#Función para obtener una sesión de la base de datos
-def get_db():
-    db = SessionLocal()
-    try:
-      yield db
-    finally:
-      db.close()
-
-
-#Función para crear las tablas de la base de datos
-def create_database():
-  Base.metadata.create_all(bind=engine)
+    def get_db_dependency(self):
+        """Dependencia para FastAPI"""
+        db = self.SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()

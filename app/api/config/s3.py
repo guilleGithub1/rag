@@ -18,26 +18,10 @@ class S3Manager:
 
 class S3Manager:
 
-    def __init__(self, bucket_name: str = None):
-        """
-        Inicializa S3Manager usando variables de entorno
-        
-        Args:
-            bucket_name (str): Nombre del bucket S3
-        """
-        # Cargar variables de entorno
-        load_dotenv()
-        
-        # Configurar credenciales desde variables de entorno
+    def __init__(self, bucket_name: str = None, s3_client=None):
         self.bucket_name = bucket_name
-        self.aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
-        self.aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-        self.region_name = os.getenv('AWS_REGION', 'us-east-1')
+        self.s3_client = s3_client
         
-        # Validar credenciales requeridas
-        if not all([self.aws_access_key_id, self.aws_secret_access_key, self.bucket_name]):
-            raise ValueError("Faltan credenciales de AWS en variables de entorno")
-
     def upload_file(self, local_file_path, s3_file_name):
         """
         Carga un archivo local al bucket S3.
@@ -182,7 +166,7 @@ class S3Manager:
             print(f"Error al leer el archivo: {e}")
             return None
     
-    def list_files(self, prefix=""):
+    def list_files(self, bucket_name, prefix=""):
         """
         Lista los archivos en un bucket S3 con un prefijo opcional.
 
@@ -193,11 +177,11 @@ class S3Manager:
             list: Lista de nombres de archivo en el bucket S3 que coinciden con el prefijo.
         """
         try:
-            response = self.s3_client.list_objects_v2(Bucket=self.bucket_name, Prefix=prefix)
+            response = self.s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
             if 'Contents' in response:
                 return [item['Key'] for item in response['Contents']]
             else:
-                print(f"No se encontraron archivos en el prefijo '{prefix}' en el bucket '{self.bucket_name}'.")
+                print(f"No se encontraron archivos en el prefijo '{prefix}' en el bucket '{bucket_name}'.")
                 return []
         except NoCredentialsError:
             print("No se encontraron credenciales de AWS. Configura tus credenciales o variables de entorno.")
@@ -206,20 +190,27 @@ class S3Manager:
             print(f"Error al listar archivos: {e}")
             return []
         
-
     @contextmanager
     def get_s3_session(self):
-        """Proporciona una sesión de S3 usando variables de entorno"""
+        """Context manager para sesiones S3"""
         s3_client = boto3.client(
             's3',
-            aws_access_key_id=self.aws_access_key_id,
-            aws_secret_access_key=self.aws_secret_access_key,
-            region_name=self.region_name
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.getenv('AWS_REGION', 'us-east-1')
         )
         try:
             yield s3_client
         finally:
             s3_client._endpoint.http_session.close()
+
+
+    def get_s3():
+        """Dependencia para FastAPI"""
+        s3_manager = S3Manager(bucket_name="aws-resumen")
+        with s3_manager.get_s3_session() as session:
+            yield session
+
 
 '''
 # Ejemplo de uso

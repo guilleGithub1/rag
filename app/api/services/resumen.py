@@ -41,7 +41,7 @@ class ResumenService:
         return db_user
     
     
-    def get_s3_files(self) -> List[Dict]:
+    def get_s3_files(self, bucket_name: str) -> List[Dict]:
         """
         Obtiene la lista de archivos almacenados en S3.
         
@@ -50,10 +50,10 @@ class ResumenService:
         """
         try:
             # Inicializar el manager
-            s3_manager = S3Manager("aws-resumen")
+            s3_manager = S3Manager(bucket_name=bucket_name, s3_client=self.s3_client)
             
             # Obtener lista de archivos
-            archivos = s3_manager.list_files()
+            archivos = s3_manager.list_files(bucket_name=bucket_name)
             
             if not archivos:
                 return []
@@ -62,10 +62,7 @@ class ResumenService:
             resultado = []
             for archivo in archivos:
                 resultado.append({
-                    'nombre': archivo.get('Key', ''),
-                    'tamaño': archivo.get('Size', 0),
-                    'ultima_modificacion': archivo.get('LastModified', ''),
-                    'etag': archivo.get('ETag', '')
+                    'nombre: ' + archivo
                 })
                 
             return resultado

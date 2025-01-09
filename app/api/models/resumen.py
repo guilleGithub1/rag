@@ -38,6 +38,7 @@ class CuotaDB(Base):
 # Modelo para la API (Pydantic)
 class Resumen(BaseModel):
     id: Optional[int] = None
-    fecha: date
+    emision: date
+    vencimiento: date
     banco: str
     marca: str

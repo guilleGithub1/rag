@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import List, Dict
 from botocore.exceptions import ClientError 
+from utils.parseVisa import Parser
+import tempfile
 
 class ResumenService:
     def __init__(self, db: Session = None, s3_client: boto3.client= None):
@@ -71,4 +73,46 @@ class ResumenService:
             raise HTTPException(
                 status_code=500,
                 detail=f"Error al obtener archivos de S3: {str(e)}"
+            )
+
+    def actualizar_db(self, key: str, bucket_name: str):
+        """
+        Procesa archivo PDF de S3 y actualiza la base de datos.
+        
+        Args:
+            key (str): Nombre del archivo en S3
+            bucket_name (str): Nombre del bucket
+        """
+        try:
+            # Crear archivo temporal
+            with tempfile.NamedTemporaryFile(suffix='.pdf') as temp_file:
+                # Descargar archivo de S3
+                self.s3_client.download_file(
+                    Bucket=bucket_name,
+                    Key=key,
+                    Filename=temp_file.name
+                )
+                
+                # Parsear PDF
+                parser = Parser(temp_file.name)
+                df_trans, df_cuotas = parser.parse_pdf()
+                
+                # Crear objeto Resumen
+                resumen = ResumenDB(
+                    fecha=df_trans['transaction_date'].iloc[0],
+                    banco="BBVA",
+                    marca="VISA"
+                )
+                
+                # Guardar en DB
+                self.db.add(resumen)
+                self.db.commit()
+                self.db.refresh(resumen)
+                
+                return resumen
+                
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al procesar archivo: {str(e)}"
             )

@@ -1,23 +1,30 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String
 from contextlib import contextmanager
+from sqlalchemy.orm import  declarative_base
+
+Base = declarative_base()
 
 class DatabaseManager:
     def __init__(self, database_url: str = None):
         self.database_url = database_url or "postgresql://postgres:postgres@db:5432/mydatabase"
         self.engine = create_engine(self.database_url)
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-        self.Base = declarative_base()
 
     def create_database(self):
-        """Crea todas las tablas definidas"""
         try:
-            self.Base.metadata.create_all(bind=self.engine)
+            # Importar modelos aquí para que SQLAlchemy los detecte
+            from models.resumen import GastoDB, ResumenDB, CuotaDB
+            
+            # Usar Base global, no self.Base
+            Base.metadata.create_all(bind=self.engine)
+            
+            inspector = inspect(self.engine)
+            print(f"Tablas creadas: {inspector.get_table_names()}")
             return True
         except Exception as e:
-            print(f"Error al crear la base de datos: {e}")
+            print(f"Error: {e}")
             return False
 
     @contextmanager
@@ -29,10 +36,11 @@ class DatabaseManager:
         finally:
             db.close()
 
-    def get_db_dependency(self):
+    def get_db_dependency():
         """Dependencia para FastAPI"""
-        db = self.SessionLocal()
+        db = DatabaseManager().SessionLocal()
         try:
             yield db
         finally:
             db.close()
+

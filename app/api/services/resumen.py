@@ -1,6 +1,5 @@
 import boto3 
 from models.user import User, UserDB
-from models.resumen import *
 from config.onedrive import *
 from config.database import *
 from config.s3 import S3Manager
@@ -10,6 +9,9 @@ from typing import List, Dict
 from botocore.exceptions import ClientError 
 from utils.parseVisa import Parser
 import tempfile
+from datetime import datetime, timedelta, date
+from models.resumen import GastoDB, ResumenDB, CuotaDB
+
 
 class ResumenService:
     def __init__(self, db: Session = None, s3_client: boto3.client= None):
@@ -75,7 +77,7 @@ class ResumenService:
                 detail=f"Error al obtener archivos de S3: {str(e)}"
             )
 
-    def actualizar_db(self, key: str, bucket_name: str):
+    def actualizar_resumen_db(self, key: str, bucket_name: str):
         """
         Procesa archivo PDF de S3 y actualiza la base de datos.
         
@@ -97,22 +99,59 @@ class ResumenService:
                 parser = Parser(temp_file.name)
                 df_trans, df_cuotas = parser.parse_pdf()
                 
-                # Crear objeto Resumen
-                resumen = ResumenDB(
-                    fecha=df_trans['transaction_date'].iloc[0],
-                    banco="BBVA",
-                    marca="VISA"
-                )
-                
-                # Guardar en DB
-                self.db.add(resumen)
-                self.db.commit()
-                self.db.refresh(resumen)
-                
-                return resumen
-                
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error al procesar archivo: {str(e)}"
+
+            emision = parser.cierre  # Assuming cierre is the emision date
+            vencimiento = parser.vencimiento  # Assuming vencimiento is the vencimiento date
+
+            resumen = ResumenDB(
+                fecha=date.today(),
+                banco="BBVA",
+                marca="VISA", 
+                vencimiento=vencimiento,
+                emision=emision
             )
+            self.db.add(resumen)
+
+            for _, row in df_trans.iterrows():
+                fecha_transaccion = datetime.strptime(row['transaction_date'], '%d.%m.%y').date() # Convert the string date to date object
+
+                gasto = GastoDB(
+                    fecha=fecha_transaccion,
+                    comercio=row['description'],  # Assuming 'description' contains comercio
+                    monto=float(row['amount'].replace(".", "").replace(",", ".")), # Convert to float
+                    banco=resumen.banco,
+                    marca=resumen.marca,
+                    resumen=resumen  # Link to ResumenDB
+                )
+                self.db.add(gasto)
+
+            
+            for _, row in df_cuotas.iterrows():
+                fecha_transaccion = datetime.strptime(row['transaction_date'], '%d.%m.%y').date() # Convert the string date to date object
+                cuotas_parts = row['coutas'].split("/")
+                numero_cuota_pagada = int(cuotas_parts[0].replace("C.", "").strip())
+                cantidad_cuotas = int(cuotas_parts[1].strip())
+
+                gasto = GastoDB(
+                    fecha=fecha_transaccion,
+                    comercio=row['description'],  # Assuming 'description' contains comercio
+                    monto=float(row['amount'].replace(".", "").replace(",", ".")), # Convert to float
+                    banco=resumen.banco,
+                    marca=resumen.marca,
+                    resumen=resumen  # Link to ResumenDB
+                )
+                cuota = CuotaDB(
+                    cantidad_cuotas=cantidad_cuotas,
+                    numero_cuota_pagada=numero_cuota_pagada,
+                    gasto=gasto
+                )
+                self.db.add(cuota)
+
+            self.db.commit()  # Commit changes to the database
+            self.db.refresh(resumen) # Refresh the resumen_db object
+
+            return resumen  # Return the Pydantic Resumen model
+
+        except Exception as e:
+            self.db.rollback() # Rollback in case of an error
+            raise HTTPException(status_code=500, detail=f"Error al procesar archivo: {str(e)}")

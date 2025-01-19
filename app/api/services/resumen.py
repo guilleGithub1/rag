@@ -11,6 +11,8 @@ from utils.parseVisa import Parser
 import tempfile
 from datetime import datetime, timedelta, date
 from models.resumen import GastoDB, ResumenDB, CuotaDB
+from config.mail import MailManager
+import os
 
 
 class ResumenService:
@@ -155,3 +157,33 @@ class ResumenService:
         except Exception as e:
             self.db.rollback() # Rollback in case of an error
             raise HTTPException(status_code=500, detail=f"Error al procesar archivo: {str(e)}")
+
+
+
+    def obtener_resumenes(self, subject: str, sender: str):
+        """
+        Obtiene resumenes desde emails usando MailManager
+        
+        Args:
+            subject (str): Asunto del correo
+            sender (str): Remitente del correo
+        """
+        try:
+            # Crear instancia de MailManager
+            mail_manager = MailManager(target_subject=subject, target_sender=sender)
+            
+            
+            # Procesar emails
+            mail_manager.process_emails()
+            
+            # Retornar archivos descargados
+            resumenes_dir = os.path.join(".", 'resumenes')
+            archivos = [f for f in os.listdir(resumenes_dir) if f.endswith('.pdf')]
+            
+            return archivos
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al obtener resumenes: {str(e)}"
+            )

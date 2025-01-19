@@ -57,3 +57,7 @@ class Resumen(BaseModel):
     vencimiento: date
     banco: str
     marca: str
+
+class MailResumen(BaseModel):
+    subject: str
+    sender: str

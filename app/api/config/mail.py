@@ -53,7 +53,7 @@ class MailManager:
                         if 'eresumen' in filename.lower():
                             fecha_datetime = parsedate_to_datetime(msg['Date'])
                             filepath = os.path.join(".", 'resumenes', 
-                                            self.banco + ' ' + filename+fecha_datetime.strftime('%Y-%m-%d'))
+                                            self.banco + '_' + fecha_datetime.strftime('%Y-%m-%d') + '_' +filename)
                             
                             os.makedirs(os.path.dirname(filepath), exist_ok=True)
                             with open(filepath, "wb") as f:

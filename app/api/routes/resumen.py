@@ -29,13 +29,7 @@ async def actualizar_resumen(key:str=None,s3: client = Depends(S3Manager.get_s3)
 
 
 @router.post("/descargar_resumenes", response_model=List[str], status_code=201)
-async def descargar_resumenes(
-    datos_mail: MailResumen,
-    db: Session = Depends(DatabaseManager.get_db_dependency)
-):
-    service = ResumenService(db=db)
-    archivos = service.obtener_resumenes(
-        subject=datos_mail.subject,
-        sender=datos_mail.sender
-    )
-    return archivos
+async def descargar_resumenes(datos_mail: MailResumen,s3: client = Depends(S3Manager.get_s3), db: Session = Depends(DatabaseManager.get_db_dependency)):
+        service = ResumenService(db=db, s3_client=s3)
+        archivos = service.obtener_resumenes(subject=datos_mail.subject, sender=datos_mail.sender)
+        return archivos

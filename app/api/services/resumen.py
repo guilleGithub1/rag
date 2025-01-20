@@ -162,7 +162,7 @@ class ResumenService:
 
     def obtener_resumenes(self, subject: str, sender: str):
         """
-        Obtiene resumenes desde emails usando MailManager
+        Obtiene resumenes desde emails y los sube a S3
         
         Args:
             subject (str): Asunto del correo
@@ -172,18 +172,29 @@ class ResumenService:
             # Crear instancia de MailManager
             mail_manager = MailManager(target_subject=subject, target_sender=sender)
             
-            
-            # Procesar emails
+            # Procesar emails y guardar localmente
             mail_manager.process_emails()
             
-            # Retornar archivos descargados
+            # Subir archivos a S3
             resumenes_dir = os.path.join(".", 'resumenes')
-            archivos = [f for f in os.listdir(resumenes_dir) if f.endswith('.pdf')]
+            s3_manager = S3Manager(bucket_name="aws-resumenes", s3_client=self.s3_client)
             
-            return archivos
+            archivos_subidos = []
+            
+            # Subir cada archivo a S3
+            with s3_manager.get_s3_session() as s3:
+                for archivo in os.listdir(resumenes_dir):
+                    local_path = os.path.join(resumenes_dir, archivo)
+                    s3_manager.upload_file(local_path, archivo)
+                    archivos_subidos.append(archivo)
+                        
+                # Limpiar archivos locales
+                os.remove(local_path)
+            
+            return archivos_subidos
             
         except Exception as e:
             raise HTTPException(
                 status_code=500,
-                detail=f"Error al obtener resumenes: {str(e)}"
+                detail=f"Error al procesar resumenes: {str(e)}"
             )

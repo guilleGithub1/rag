@@ -9,6 +9,7 @@ import os
 from dotenv import load_dotenv
 from contextlib import contextmanager
 from botocore.exceptions import NoCredentialsError, ClientError
+from typing import List
 
 
 class S3Manager:
@@ -212,6 +213,33 @@ class S3Manager:
             yield session
 
 
+    def get_files_by_keywords(self, bucket_name: str, keyword1: str, keyword2: str) -> List[str]:
+        """
+        Obtiene archivos que contengan ambas palabras clave
+        
+        Args:
+            bucket_name (str): Nombre del bucket
+            keyword1 (str): Primera palabra a buscar
+            keyword2 (str): Segunda palabra a buscar
+        """
+        try:
+            response = self.s3_client.list_objects_v2(Bucket=bucket_name)
+            
+            if 'Contents' not in response:
+                return []
+                
+            # Filtrar por ambas palabras
+            filtered_files = [
+                obj['Key'] for obj in response['Contents']
+                if keyword1.lower() in obj['Key'].lower() 
+                and keyword2.lower() in obj['Key'].lower()
+            ]
+            
+            return filtered_files
+            
+        except ClientError as e:
+            print(f"Error al listar archivos: {e}")
+            return []
 '''
 # Ejemplo de uso
 if __name__ == "__main__":

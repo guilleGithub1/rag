@@ -1,5 +1,5 @@
 
-from sqlalchemy import Column, Integer, String, Date, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Float, Boolean
 from sqlalchemy.orm import relationship
 from pydantic import BaseModel
 from typing import Optional
@@ -13,11 +13,14 @@ class ResumenDB(Base):
     __tablename__ = "resumenes"
 
     id = Column(Integer, primary_key=True, index=True)
-    fecha = Column(Date)
-    banco = Column(String)
+    emision = Column(Date)
+    vencimiento = Column(Date)
+    banco_id = Column(Integer, ForeignKey("bancos.id"))
     marca = Column(String)
     # Relación correcta con gastos
     gastos = relationship("GastoDB", back_populates="resumen")
+    bancos = relationship("BancoDB", back_populates="resumenes")
+
 
 
 class GastoDB(Base):
@@ -27,7 +30,6 @@ class GastoDB(Base):
     fecha = Column(Date)
     comercio = Column(String)
     monto = Column(Float)
-    banco = Column(String)
     marca = Column(String)
     resumen_id = Column(Integer, ForeignKey("resumenes.id"))
 
@@ -47,6 +49,22 @@ class CuotaDB(Base):
     # Relación con gasto
     gasto = relationship("GastoDB", back_populates="cuotas")
 
+class BancoDB(Base):
+    __tablename__ = "bancos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, unique=True)
+    patron_busqueda = Column(String)  # Cambiado de re_busqueda a patron_busqueda
+    resumenes = relationship("ResumenDB", back_populates="bancos")
+    subject = Column(String)
+    sender = Column(String)
+    visa = Column(Boolean, default=False)
+    mastercard=  Column(Boolean, default=False)
+    amex=  Column(Boolean, default=False)
+
+
+
+
 
 
 
@@ -61,3 +79,14 @@ class Resumen(BaseModel):
 class MailResumen(BaseModel):
     subject: str
     sender: str
+
+
+class Banco(BaseModel):
+    nombre: str
+    patron_busqueda: str
+    subject: str
+    sender: str
+    visa: bool
+    mastercard: bool
+    amex: bool
+

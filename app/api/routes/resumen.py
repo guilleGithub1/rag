@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models.resumen import Resumen, MailResumen
+from models.resumen import Resumen, MailResumen, Banco
 from services.resumen import ResumenService  # Importamos la clase
 from sqlalchemy.orm import Session
 from config.s3 import S3Manager
@@ -22,7 +22,7 @@ async def get_archivos_s3(s3: client = Depends(S3Manager.get_s3)):
 
 
 @router.get("/actualizar_resumen", response_model=Resumen, status_code=201)
-async def actualizar_resumen(key:str=None,s3: client = Depends(S3Manager.get_s3), db: Session = Depends(DatabaseManager.get_db_dependency)):
+async def actualizar_resumen(key:str=None,s3: client = Depends(S3Manager.get_s3), db: Session = Depends(DatabaseManager.get_db_dependency), banco: str = None):
         service = ResumenService(db=db,s3_client=s3)
         archivos = service.actualizar_resumen_db(key= 'ERESUMEN  VISA.PDF2024-02-26.pdf', bucket_name="aws-resumenes")
         return archivos
@@ -32,4 +32,11 @@ async def actualizar_resumen(key:str=None,s3: client = Depends(S3Manager.get_s3)
 async def descargar_resumenes(datos_mail: MailResumen,s3: client = Depends(S3Manager.get_s3), db: Session = Depends(DatabaseManager.get_db_dependency)):
         service = ResumenService(db=db, s3_client=s3)
         archivos = service.obtener_resumenes(subject=datos_mail.subject, sender=datos_mail.sender)
+        return archivos
+
+
+@router.post("/agregar_banco", response_model=Banco, status_code=201)
+async def agregar_banco(banco: Banco=None,  db: Session = Depends(DatabaseManager.get_db_dependency)):
+        service = ResumenService(db=db)
+        archivos = service.agregar_banco(banco=banco)
         return archivos

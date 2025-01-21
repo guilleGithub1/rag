@@ -44,3 +44,4 @@ class DatabaseManager:
         finally:
             db.close()
 
+    

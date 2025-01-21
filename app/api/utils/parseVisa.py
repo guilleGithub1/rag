@@ -14,9 +14,8 @@ class Parser:
         self.cierre: Date = None
         self.vencimiento: Date = None
 
-        self.patrones
-        self.transaction_pattern = "^(?P<transaction_date>\s*\d{2}.\d{2}.\d{2})(?P<id_trans>\s+\d{6}\*)(?P<description>\s+[\w\s*. -]+(?:\([\w,\s]+\))?)(?P<amount>\s+\d{1,5}(?:.\d{2})?\d{1,5}(?:,\d{2})?)"
-        self.cuotas_pattern = "^(?P<transaction_date>\s*\d{2}.\d{2}.\d{2})(?P<id_trans>\s+\d{6}\*)(?P<description>\s+[\w\s*. -]+(?:\([\w,\s]+\))?)(?P<coutas>\s+C.\d{2}/\d{2})(?P<amount>\s+\d{1,5}(?:.\d{2})?\d{1,5}(?:,\d{2})?)"
+        self.transaction_pattern = "^(?P<transaction_date>\s*\d{2}.\d{2}.\d{2})(?P<id_trans>\s+\d{6}\*)(?P<description>\s+[\w\s*. -]+(?:\([\w,\s]+\))?)(?P<amount>\s+\d{1,5}(?:.\d{2})?\d{1,5}(?:,\d{2})?-?)"
+        self.cuotas_pattern = "^(?P<transaction_date>\s*\d{2}.\d{2}.\d{2})(?P<id_trans>\s+\d{6}\*)(?P<description>\s+[\w\s*. -]+(?:\([\w,\s]+\))?)(?P<coutas>\s+C.\d{2}/\d{2})(?P<amount>\s+\d{1,5}(?:.\d{2})?\d{1,5}(?:,\d{2})?-?)"
         self.cierre_pattern = "(CIERRE\s+ACTUAL\s+)(?P<dia>\d{2})\s+(?P<mes>[A-Za-z]{3})\s+(?P<anio>\d{2})"
         self.vencimiento_pattern = "(VENCIMIENTO\s+ACTUAL\s+)(?P<dia>\d{2})\s+(?P<mes>[A-Za-z]{3})\s+(?P<anio>\d{2})"
 

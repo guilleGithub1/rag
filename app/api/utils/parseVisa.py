@@ -2,22 +2,39 @@ import pdftotext
 import re
 import pandas as pd
 from typing import List, Dict
-from datetime import date as Date
+from datetime import date as Date, datetime
 import calendar
 
 
 class Parser:
-    def __init__(self, pdf_path: str):
+    def __init__(self, pdf_path: str, patrones: Dict[str, str]):
         self.pdf_path = pdf_path
         self.transactions: List[Dict] = []
         self.coutas: List[Dict] = []
         self.cierre: Date = None
         self.vencimiento: Date = None
 
+        self.transaction_pattern = patrones["transaccion"]
+        self.cuotas_pattern = patrones["transaccion_cuota"]
+        self.cierre_pattern = patrones["fecha_cierre"]
+        self.vencimiento_pattern =  patrones["fecha_vencimiento"]
+        self.ancho_maximo = patrones["ancho_maximo"]
+
+        '''
+        visa:
+        ^(?P<fecha>.{11})(?P<id>\d{6})\*(?P<Descripcion>.{68})(?P<monto_pesos>.{9}-?)?(?P<monto_dolares>.{2})?
+        ^(?P<fecha>.{11})(?P<id>\d{6})\*(?P<Descripcion>.{33})(?P<cuota>.{9})(?P<monto_pesos>.{35})?(?P<monto_dolares>.{2})?
+        
+        ^(?P<fecha>.{10})(?P<Descripcion>.{38})(?P<id>.{6})(?P<monto_pesos>.{28})?(?P<monto_dolares>.{25})?
+        ^(?P<fecha>.{10})(?P<Descripcion>.{35})(?P<cuota>.{6})?(?P<id>.{6})(?P<monto_pesos>.{26})?(?P<monto_dolares>.{25})?
+
+        (?P<transaction_date>\d{2}-[A-Za-z]{3}-\d{2})\s+(?P<description>.+?)\s+(?P<id_trans>\d+)\s+(?P<amount>\d{1,}(?:\.\d{3})*(?:,\d{2})?)
+        (?P<transaction_date>\d{2}-[A-Za-z]{3}-\d{2})\s+(?P<description>.+?)\s+(?P<cuotas>\d{2}/\d{2})\s+(?P<id_trans>\d+)\s+(?P<amount>\d{1,}(?:\.\d{3})*(?:,\d{2})?)
         self.transaction_pattern = "^(?P<transaction_date>\s*\d{2}.\d{2}.\d{2})(?P<id_trans>\s+\d{6}\*)(?P<description>\s+[\w\s*. -]+(?:\([\w,\s]+\))?)(?P<amount>\s+\d{1,5}(?:.\d{2})?\d{1,5}(?:,\d{2})?-?)"
         self.cuotas_pattern = "^(?P<transaction_date>\s*\d{2}.\d{2}.\d{2})(?P<id_trans>\s+\d{6}\*)(?P<description>\s+[\w\s*. -]+(?:\([\w,\s]+\))?)(?P<coutas>\s+C.\d{2}/\d{2})(?P<amount>\s+\d{1,5}(?:.\d{2})?\d{1,5}(?:,\d{2})?-?)"
         self.cierre_pattern = "(CIERRE\s+ACTUAL\s+)(?P<dia>\d{2})\s+(?P<mes>[A-Za-z]{3})\s+(?P<anio>\d{2})"
         self.vencimiento_pattern = "(VENCIMIENTO\s+ACTUAL\s+)(?P<dia>\d{2})\s+(?P<mes>[A-Za-z]{3})\s+(?P<anio>\d{2})"
+        '''
 
     def parse_pdf(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         with open(self.pdf_path, "rb") as file:
@@ -30,55 +47,120 @@ class Parser:
         
         return self._create_dataframes()
 
+    def get_contenido_pdf(self) -> str: 
+        with open(self.pdf_path, "rb") as file:
+            pdf = pdftotext.PDF(file, physical=True)
+            contenido = ""
+            for page_num in range(len(pdf)):
+                contenido += pdf[page_num]
+            return contenido
+
     def _process_line(self, line: str) -> None:
-        match_transacciones = re.search(pattern=self.transaction_pattern, string=line)
-        match_cuotas = re.search(pattern=self.cuotas_pattern, string=line)
-        match_cierre = re.search(pattern=self.cierre_pattern, string=line)
-        match_vencimiento = re.search(pattern=self.vencimiento_pattern, string=line)
         
         # Spanish month abbreviations dictionary
         meses_es = {
                 "ENE": 1, "FEB": 2, "MAR": 3, "ABR": 4, "MAY": 5, "JUN": 6,
                 "JUL": 7, "AGO": 8, "SEP": 9, "OCT": 10, "NOV": 11, "DIC": 12
             }
+        # Procesar fecha de cierre y vencimiento
+        try:
+            match_cierre = re.search(pattern=self.cierre_pattern, string=line)
+            if match_cierre:
+                self.cierre = self.parse_date(match_cierre.group("fecha"))
 
-        if match_cierre:
-            dia = int(match_cierre.group("dia"))
-            mes_str = match_cierre.group("mes").upper()  # Still uppercase for consistency
-            anio = 2000 + int(match_cierre.group("anio"))
+            match_vencimiento = re.search(pattern=self.vencimiento_pattern, string=line)
+            if match_vencimiento:
+                self.vencimiento = self.parse_date(match_vencimiento.group("fecha"))
 
-            try:
-                mes = meses_es[mes_str]
-            except KeyError:
-                print(f"Error: Invalid month abbreviation: {mes_str}")
-                # Handle the error as needed, e.g., raise an exception, set a default, skip the line
-                return  # Or raise a more specific exception
+        # Procesar transacciones y cuotas
+            match_transacciones = re.search(pattern=self.transaction_pattern, string=line)
+            match_cuotas = re.search(pattern=self.cuotas_pattern, string=line)
 
-            self.cierre = Date(anio, mes, dia)
-
-        if match_vencimiento:
-            dia = int(match_vencimiento.group("dia"))
-            mes_str = match_vencimiento.group("mes").upper()    # Still uppercase for consistency
-            anio = 2000 + int(match_vencimiento.group("anio"))
-            try:
-                mes = meses_es[mes_str]
-            except KeyError:
-                print(f"Error: Invalid month abbreviation: {mes_str}")
-                return
+            if match_transacciones:
+                transaction_dict = match_transacciones.groupdict()
+        
+                transaction = {
+                    'transaction_date': self.parse_date(transaction_dict['transaction_date'].strip()),
+                    'description': transaction_dict['description'].strip(),
+                    'id_trans': transaction_dict['id_trans'].strip(),
+                    'amount':  transaction_dict['amount'].strip(),
+                    'moneda': self.get_moneda(line)
+                }
+                self.transactions.append(transaction)
             
-            self.vencimiento = Date(anio, mes, dia)
+            elif match_cuotas:
 
-        if match_transacciones:
-            self.transactions.append(match_transacciones.groupdict())
-        elif match_cuotas:
-            self.coutas.append(match_cuotas.groupdict())
+                cuotas_dict = match_cuotas.groupdict()
 
+                cuota = {
+                    'transaction_date': self.parse_date(cuotas_dict['transaction_date'].strip()),
+                    'description': cuotas_dict['description'].strip(),
+                    'id_trans': cuotas_dict['id_trans'].strip(),
+                    'amount': cuotas_dict['amount'].strip(),
+                    'cuotas': cuotas_dict['cuotas'].strip(),
+                    'moneda': self.get_moneda(line)
+                }
+                print(cuota)
+                self.coutas.append(cuota)
+
+        except KeyError as e:
+            raise ValueError(f"Campo requerido no encontrado: {str(e)}")
+            
+        except ValueError as e:
+            raise ValueError(f"Error al convertir valor: {str(e)}")
+            
+        except AttributeError as e:
+            raise ValueError(f"Error en formato de datos: {str(e)}")
+            
+        except Exception as e:
+            raise RuntimeError(f"Error procesando línea: {str(e)}")
 
     def _create_dataframes(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        df_transaciones = pd.DataFrame(self.transactions)
+        df_transaciones = pd.DataFrame(self.transactions) 
         df_cuotas = pd.DataFrame(self.coutas)
         return df_transaciones, df_cuotas
+    
 
+    def get_moneda(self, line: str) -> str:
+        return "USD" if len(line.strip()) >= self.ancho_maximo else "PESOS"
+    
+    def parse_date(self, date_str: str) -> Date:
+        """
+        Convierte string a Date
+        Args:
+            date_str: Fecha en formato '10.05.19' o '10-May-19'
+        Returns:
+            Date: Objeto fecha convertido
+        """
+        meses = {
+            'Ene': '01', 'Feb': '02', 'Mar': '03', 'Abr': '04',
+            'May': '05', 'Jun': '06', 'Jul': '07', 'Ago': '08',
+            'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dic': '12'
+        }
+
+        try:
+            # Intentar formato dd.mm.yy
+            if '.' in date_str:
+                return datetime.strptime(date_str.strip(), '%d.%m.%y').date()
+                
+            # Intentar formato dd-mmm-yy
+            if '-' in date_str:
+                dia, mes, anio = date_str.strip().split('-')
+                mes_numero = meses.get(mes, '01')
+                fecha_str = f"{dia}.{mes_numero}.{anio}"
+                return datetime.strptime(fecha_str, '%d.%m.%y').date()
+                    
+            # Intentar formato dd-mmm-yy
+            if ' ' in date_str:
+                dia, mes, anio = date_str.strip().split(' ')
+                mes_numero = meses.get(mes, '01')
+                fecha_str = f"{dia}.{mes_numero}.{anio}"
+                return datetime.strptime(fecha_str, '%d.%m.%y').date()
+                
+            raise ValueError(f"Formato de fecha no soportado: {date_str}")
+            
+        except Exception as e:
+            raise ValueError(f"Error convirtiendo fecha {date_str}: {str(e)}")
 # Ejemplo de uso:
 """
 parser = Parser("./ERESUMEN  VISA.PDF2024-02-26.pdf")

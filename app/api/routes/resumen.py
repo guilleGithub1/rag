@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
-from models.resumen import Resumen, MailResumen, Banco
+from models.resumen import Resumen, MailResumen, Banco, Patron
 from services.resumen import ResumenService  # Importamos la clase
 from sqlalchemy.orm import Session
 from config.s3 import S3Manager
 from config.database import DatabaseManager
+from config.mail import MailManager
 from boto3 import client
 from typing import List, Dict
 
@@ -39,4 +40,25 @@ async def descargar_resumenes(datos_mail: MailResumen,s3: client = Depends(S3Man
 async def agregar_banco(banco: Banco=None,  db: Session = Depends(DatabaseManager.get_db_dependency)):
         service = ResumenService(db=db)
         archivos = service.agregar_banco(banco=banco)
+        return archivos
+
+
+@router.post("/agregar_patron", response_model=Patron, status_code=201)
+async def agregar_patron(patron: Patron=None,  db: Session = Depends(DatabaseManager.get_db_dependency)):
+        service = ResumenService(db=db)
+        resultado = service.agregar_patron(patron=patron)
+        return resultado
+
+
+
+@router.get("/lineas_pdf", response_model=None, status_code=201)
+async def lineas_pdf(nombre_archivo:str=None):
+        service = ResumenService(db=None,s3_client=None)
+        archivos = service.get_lineas_resumen(nombre_archivo='./resumenes/ICBC_2024-09-23_ERESUMEN  VISA.PDF')
+        return archivos
+
+@router.get("/get_mails", response_model=list[Dict], status_code=201)
+async def get_mails(mail:MailManager = Depends(MailManager.get_mail_dependency),db: Session = Depends(DatabaseManager.get_db_dependency)):
+        service = ResumenService(mail=mail, db=db)
+        archivos = service.get_mails()
         return archivos

@@ -7,18 +7,19 @@ import calendar
 
 
 class Parser:
-    def __init__(self, pdf_path: str, patrones: Dict[str, str]):
-        self.pdf_path = pdf_path
+    def __init__(self,  contenido_pdf: str, patrones: Dict[str, str] = None):
+        self.pdf_path = str = None
         self.transactions: List[Dict] = []
         self.coutas: List[Dict] = []
         self.cierre: Date = None
         self.vencimiento: Date = None
+        self.contenido = contenido_pdf
 
-        self.transaction_pattern = patrones["transaccion"]
-        self.cuotas_pattern = patrones["transaccion_cuota"]
-        self.cierre_pattern = patrones["fecha_cierre"]
-        self.vencimiento_pattern =  patrones["fecha_vencimiento"]
-        self.ancho_maximo = patrones["ancho_maximo"]
+        self.transaction_pattern =  None
+        self.cuotas_pattern = None
+        self.cierre_pattern = None
+        self.vencimiento_pattern =   None
+        self.ancho_maximo = None
 
         '''
         visa:
@@ -161,6 +162,131 @@ class Parser:
             
         except Exception as e:
             raise ValueError(f"Error convirtiendo fecha {date_str}: {str(e)}")
+
+    def extract_fechas(self) -> tuple[str, str]:
+        """
+        Extrae fechas de cierre y vencimiento
+        Args:
+            contenido_pdf: Contenido del PDF
+        Returns:
+            tuple[str, str]: (fecha_cierre, fecha_vencimiento)
+        """
+        try:
+            fecha_cierre = ''
+            fecha_vencimiento = ''
+            
+            for linea in self.contenido.split('\n'):
+                # Buscar fecha cierre
+                match_cierre = re.search(self.cierre_pattern, linea)
+                if match_cierre:
+                    fecha_cierre = self.parse_date(match_cierre.group('cierre'))
+                    
+                # Buscar fecha vencimiento    
+                match_vencimiento = re.search(self.vencimiento_pattern, linea)
+                if match_vencimiento:
+                    fecha_vencimiento = self.parse_date(match_vencimiento.group('vencimiento'))
+                    
+            return (fecha_cierre, fecha_vencimiento)
+                
+        except Exception as e:
+            print(f"Error extrayendo fechas: {str(e)}")
+            return ('', '')
+
+
+    def get_marca_tarjeta(self) -> str:
+        """
+        Detecta tipo de tarjeta en texto
+        Args:
+            texto (str): Texto a analizar
+        Returns:
+            str: VISA, MASTERCARD, AMEX o string vacío
+        """
+        try:
+            # Usar grupo de captura para obtener el texto exacto
+            mastercard_match = re.search(r'(MASTERCARD)', self.contenido, re.IGNORECASE)
+            visa_match = re.search(r'(VISA)', self.contenido, re.IGNORECASE)
+            amex_match = re.search(r'(AMEX)', self.contenido, re.IGNORECASE)
+            
+            if mastercard_match:
+                return "MASTERCARD"  # Retornar siempre en mayúsculas
+            elif visa_match:
+                return "VISA"
+            elif amex_match:
+                return "AMEX"
+                
+            return ""
+            
+        except Exception as e:
+            print(f"Error detectando tipo tarjeta: {str(e)}")
+            return ""
+
+    def set_patrones(self, patrones: Dict[str, str]) -> 'Parser':
+        """
+        Asigna patrones después de crear instancia
+        Args:
+            patrones: Diccionario con patrones
+        Returns:
+            Parser: self para encadenamiento
+        """
+        self.transaction_pattern = patrones["transaccion"]
+        self.cuotas_pattern = patrones["transaccion_cuota"]
+        self.cierre_pattern = patrones["fecha_cierre"]
+        self.vencimiento_pattern = patrones["fecha_vencimiento"]
+        self.ancho_maximo = patrones["ancho_maximo"]
+        return self
+
+
+    def get_gastos_cuotas(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Extrae gastos y cuotas de PDF
+        Args:
+            contenido_pdf: Contenido del PDF
+        Returns:
+            tuple[pd.DataFrame, pd.DataFrame]: (gastos, cuotas)
+        """
+        try:
+            gastos = []
+            cuotas = []
+            for linea in self.contenido.split('\n'):
+                # Buscar transacciones
+                match_transaccion = re.search(self.transaction_pattern, linea)
+                if match_transaccion:
+                    transaction_dict = match_transaccion.groupdict()
+            
+                    gastos = {
+                        'transaction_date': self.parse_date(transaction_dict['transaction_date'].strip()),
+                        'description': transaction_dict['description'].strip(),
+                        'id_trans': transaction_dict['id_trans'].strip(),
+                        'amount':  transaction_dict['amount'].strip(),
+                        'moneda': self.get_moneda(linea)
+                    }
+                    self.transactions.append(gastos)
+
+                # Buscar cuotas
+                match_cuota = re.search(self.cuotas_pattern, linea)
+                if match_cuota:
+                    cuotas_dict = match_cuota.groupdict()
+
+                    cuota = {
+                        'transaction_date': self.parse_date(cuotas_dict['transaction_date'].strip()),
+                        'description': cuotas_dict['description'].strip(),
+                        'id_trans': cuotas_dict['id_trans'].strip(),
+                        'amount': cuotas_dict['amount'].strip(),
+                        'cuotas': cuotas_dict['cuotas'].strip(),
+                        'moneda': self.get_moneda(linea)
+                    }
+                    print(cuota)
+                    self.coutas.append(cuota)
+
+            return (pd.DataFrame(self.transactions), pd.DataFrame(self.coutas))
+        
+        except Exception as e:
+            print(f"Error extrayendo gastos y cuotas: {str(e)}")
+            return (pd.DataFrame(), pd.DataFrame())
+        
+
+
+# Patrones de búsqueda para Visa    
 # Ejemplo de uso:
 """
 parser = Parser("./ERESUMEN  VISA.PDF2024-02-26.pdf")

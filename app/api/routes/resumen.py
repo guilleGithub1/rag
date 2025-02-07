@@ -54,7 +54,7 @@ async def agregar_patron(patron: Patron=None,  db: Session = Depends(DatabaseMan
 @router.get("/lineas_pdf", response_model=None, status_code=201)
 async def lineas_pdf(nombre_archivo:str=None):
         service = ResumenService(db=None,s3_client=None)
-        archivos = service.get_lineas_resumen(nombre_archivo='./resumenes/ICBC_2024-09-23_ERESUMEN  VISA.PDF')
+        archivos = service.get_lineas_resumen(nombre_archivo='./resumenes/20250201.PDF')
         return archivos
 
 @router.get("/get_mails", response_model=list[Dict], status_code=201)

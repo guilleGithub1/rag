@@ -112,7 +112,7 @@ class ResumenService:
             
             if marca == "VISA":
                 patron = banco.patron_visa
-            elif marca == "MASTER":
+            elif marca == "MASTER" or marca == "MASTERCARD":
                 patron = banco.patron_mastercard
             elif marca == "AMEX":
                 patron = banco.patron_amex
@@ -491,7 +491,10 @@ class ResumenService:
                 detail=f"Error obteniendo link adjunto: {str(e)}"
             )
 
-    def get_contenido_pdf(self) -> str: 
+    def get_contenido_pdf(link_descarga:str) -> str: 
+
+        
+
         with open(self.pdf_path, "rb") as file:
             pdf = pdftotext.PDF(file, physical=True)
             contenido = ""
@@ -499,29 +502,7 @@ class ResumenService:
                 contenido += pdf[page_num]
             return contenido
         
-    def get_marca_tarjeta(self, contenido: str) -> str:
-        """
-        Detecta tipo de tarjeta en texto
-        Args:
-            texto (str): Texto a analizar
-        Returns:
-            str: VISA, MASTERCARD, AMEX o string vacío
-        """
-        try:
-            texto = texto.upper()
-            
-            if re.search(r'VISA', contenido, re.IGNORECASE):
-                return "VISA"
-            elif re.search(r'MASTERCARD', contenido, re.IGNORECASE):
-                return "MASTERCARD"
-            elif re.search(r'AMEX', contenido, re.IGNORECASE):
-                return "AMEX"
-                
-            return ""
-        
-        except Exception as e:
-            print(f"Error detectando tipo tarjeta: {str(e)}")
-            return ""
+
     
     def get_mails(self) -> List[Dict]:
         """
@@ -539,36 +520,96 @@ class ResumenService:
 
                 mails_banco = self.mail.get_lista_mails(
                         banco.patron_busqueda,
-                        banco.sender
+                        banco.sender, 
+                        banco.archivo_adjunto, 
+                        banco.patron_link_descarga
                     )
                 for mail in mails_banco:
                     mail['banco'] = banco.nombre
 
-                    if banco.archivo_adjunto:
-                        mail['link_descarga'] = self.get_link_adjunto(mail['contenido'], banco.patron_link_descarga)
-                        mail['contenido_adjunto'] = self.get(mail['link_descarga'])
+
 
                     maildb=MailDB(
                         mail_gmail_id=mail['mail_id'],
                         fecha=mail['fecha'],
-                        contenido=mail['contenido']
+                        contenido_mail=mail['contenido']
                     )
 
-                    for adjunto in mail['adjuntos']:
-                        adjunto_db=ResumenPdfDB(
-                            nombre=banco + "_" + mail['fecha'] ,
-                            mail=maildb
-                            link_descarga=mail['link_descarga']
+                    if banco.archivo_adjunto:
+                        contenido_pdf = mail['contenido_adjunto']
+       
+                    adjunto_db=ResumenPdfDB(
+                            nombre=banco.nombre + "_" + str(mail['fecha']) ,
+                            mail=maildb,
+                            link_descarga="",
+                            contenido_pdf=contenido_pdf
                         )
-                        self.db.add(adjunto_db)               
 
+                    self.db.add(adjunto_db)               
                     self.db.add(maildb)
+
+
+                    
+                    parser = Parser(contenido_pdf=contenido_pdf)
+                    marca = parser.get_marca_tarjeta()
+                    patrones = self.get_patrones(banco, marca=marca)
+                    parser.set_patrones(patrones)
+
+
+                    cierre, vencimiento = parser.extract_fechas()
+                    df_trans, df_cuotas = parser.get_gastos_cuotas()
+
+                    resumen = ResumenDB(
+                        banco_id=banco.id,
+                        marca=marca,
+                        vencimiento=vencimiento,
+                        cierre=cierre, 
+                        mail=maildb,
+                        emision=mail['fecha'],
+                    )
+
+
+                    for _, row in df_trans.iterrows():
+                            fecha_transaccion = row['transaction_date']
+
+                            gasto = GastoDB(
+                                fecha=fecha_transaccion,
+                                comercio=row['description'],  # Assuming 'description' contains comercio
+                                monto=self.convert_amount_to_float(row['amount']),
+                                moneda=row['moneda'],
+                                marca=resumen.marca,
+                                resumen=resumen  # Link to ResumenDB
+                            )
+                            self.db.add(gasto)
+
+                        
+                    for _, row in df_cuotas.iterrows():
+                            fecha_transaccion = row['transaction_date']
+                            cuotas_parts = row['cuotas'].split("/")
+                            numero_cuota_pagada = int(cuotas_parts[0].replace("C.", "").strip())
+                            cantidad_cuotas = int(cuotas_parts[1].strip())
+
+                            gasto = GastoDB(
+                                fecha=fecha_transaccion,
+                                comercio=row['description'],  # Assuming 'description' contains comercio
+                                monto=float(row['amount'].replace(".", "").replace(",", ".")), # Convert to float
+                                marca=resumen.marca,
+                                moneda=row['moneda'],
+                                resumen=resumen  # Link to ResumenDB
+                            )
+                            cuota = CuotaDB(
+                                cantidad_cuotas=cantidad_cuotas,
+                                numero_cuota_pagada=numero_cuota_pagada,
+                                gasto=gasto
+                            )
+                            self.db.add(cuota)
+
+
+                    self.db.add(resumen)
+
                     self.db.commit()
                     self.db.refresh(maildb)
 
-                # Agregar nombre banco
-                for mail in mails_banco:
-                    mail['banco'] = banco.nombre
                 
                 all_mails.extend(mails_banco)
                 

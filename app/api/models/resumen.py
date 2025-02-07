@@ -15,11 +15,12 @@ class ResumenDB(Base):
     id = Column(Integer, primary_key=True, index=True)
     emision = Column(Date)
     vencimiento = Column(Date)
+    cierre = Column(Date)
     banco_id = Column(Integer, ForeignKey("bancos.id"))
     mail_id = Column(Integer, ForeignKey("mails.id"))
     marca = Column(String)
     # Relación correcta con gastos
-    gastos = relationship("GastoDB", back_populates="resumenes")
+    gastos = relationship("GastoDB", back_populates="resumen")
     bancos = relationship("BancoDB", back_populates="resumenes")
     mail= relationship("MailDB", back_populates="resumenes")
 
@@ -38,7 +39,7 @@ class GastoDB(Base):
 
     # Relaciones bidireccionales
     resumen = relationship("ResumenDB", back_populates="gastos")
-    cuotas = relationship("CuotaDB", back_populates="gastos")
+    cuotas = relationship("CuotaDB", back_populates="gasto")
 
 class CuotaDB(Base):
     __tablename__ = "cuotas"
@@ -97,7 +98,7 @@ class MailDB(Base):
 
     # Relación con resumenes
     resumenes = relationship("ResumenDB", back_populates="mail")
-    resumenes_pdf = relationship("AdjuntoDB", back_populates="mail")   
+    resumenes_pdf = relationship("ResumenPdfDB", back_populates="mail")
 
 class ResumenPdfDB(Base):
     __tablename__ = "resumenes_pdf"

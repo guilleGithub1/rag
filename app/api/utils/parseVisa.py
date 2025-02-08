@@ -287,7 +287,7 @@ class Parser:
 
 
 # Patrones de búsqueda para Visa    
-# Ejemplo de uso:
+# Ejemplo de uso:ffff
 """
 parser = Parser("./ERESUMEN  VISA.PDF2024-02-26.pdf")
 df_trans, df_cuotas = parser.parse_pdf()

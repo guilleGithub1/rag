@@ -13,6 +13,7 @@ class Parser:
         self.coutas: List[Dict] = []
         self.cierre: Date = None
         self.vencimiento: Date = None
+        #Cada linea del array contenido_pdf es equivalente a una linea de texto en el pdf
         self.contenido = contenido_pdf
 
         self.transaction_pattern =  None
@@ -140,6 +141,15 @@ class Parser:
         }
 
         try:
+
+            if date_str.isdigit():
+                #fecha_objeto = Date(self.cierre.year, self.cierre.month, int(date_str))
+                #fecha_formateada = fecha_objeto.strftime('%d.%m.%y').date()
+                #return fecha_formateada # Ahora sí devuelve una cadena 'dd.mm.yy'
+                fecha_str = f"{date_str}.{self.cierre.month}.{str(self.cierre.year)[-2:]}"
+                return datetime.strptime(fecha_str, '%d.%m.%y').date()
+                
+
             # Intentar formato dd.mm.yy
             if '.' in date_str:
                 return datetime.strptime(date_str.strip(), '%d.%m.%y').date()
@@ -180,12 +190,15 @@ class Parser:
                 match_cierre = re.search(self.cierre_pattern, linea)
                 if match_cierre:
                     fecha_cierre = self.parse_date(match_cierre.group('cierre'))
+                    self.cierre = fecha_cierre
                     
                 # Buscar fecha vencimiento    
                 match_vencimiento = re.search(self.vencimiento_pattern, linea)
                 if match_vencimiento:
                     fecha_vencimiento = self.parse_date(match_vencimiento.group('vencimiento'))
-                    
+                    self.vencimiento = fecha_vencimiento
+
+
             return (fecha_cierre, fecha_vencimiento)
                 
         except Exception as e:
@@ -260,6 +273,7 @@ class Parser:
                         'amount':  transaction_dict['amount'].strip(),
                         'moneda': self.get_moneda(linea)
                     }
+                    print(gastos)
                     self.transactions.append(gastos)
 
                 # Buscar cuotas
@@ -285,6 +299,54 @@ class Parser:
             return (pd.DataFrame(), pd.DataFrame())
         
 
+
+    def get_gastos(self) -> pd.DataFrame:
+        """
+        Extrae gastos de PDF
+        Args:
+            contenido_pdf: Contenido del PDF
+        Returns:
+            pd.DataFrame: Gastos
+        """
+        try:
+
+
+
+
+            
+            return pd.DataFrame(self.transactions)
+        except Exception as e:
+            print(f"Error extrayendo gastos: {str(e)}")
+            return pd.DataFrame()
+        
+
+    def get_banco(self, bancos: List[str]) -> str:
+        """
+        Extrae nombre del banco
+        Args:
+            contenido_pdf: Contenido del PDF
+        Returns:
+            str: Nombre del banco
+        """
+        try:
+
+            contenido_lower = self.contenido.lower()
+
+            for banco in bancos:
+                if banco.nombre.lower() in contenido_lower:
+                    return banco
+            return ""
+            
+        except Exception as e:
+            print(f"Error detectando banco: {str(e)}")
+            return ""
+        
+
+        
+
+
+        
+# Ejemplo de uso
 
 # Patrones de búsqueda para Visa    
 # Ejemplo de uso:ffff

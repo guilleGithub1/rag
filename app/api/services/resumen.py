@@ -312,7 +312,7 @@ class ResumenService:
                         archivos_subidos.append(archivo)
                             
                     # Limpiar archivos locales
-                    os.remove(local_path)
+                    #os.remove(local_path)
             
             return archivos_subidos
             
@@ -403,6 +403,17 @@ class ResumenService:
 
             return lines
         
+
+    def get_texto_pdf(self, nombre_archivo: str):
+
+        with open(nombre_archivo, "rb") as file:
+            pdf = pdftotext.PDF(file, physical=True)
+            page = []
+            for page_num in range(len(pdf)):
+                page += pdf[page_num]
+
+            return page
+        
     def get_resumen_bbva(self, subject: str, sender: str) -> str:
         """
         Obtiene link del email especificado
@@ -491,11 +502,9 @@ class ResumenService:
                 detail=f"Error obteniendo link adjunto: {str(e)}"
             )
 
-    def get_contenido_pdf(link_descarga:str) -> str: 
+    def get_contenido_pdf(self, link_descarga:str) -> str: 
 
-        
-
-        with open(self.pdf_path, "rb") as file:
+        with open(link_descarga, "rb") as file:
             pdf = pdftotext.PDF(file, physical=True)
             contenido = ""
             for page_num in range(len(pdf)):
@@ -620,3 +629,100 @@ class ResumenService:
                 status_code=500,
                 detail=f"Error obteniendo mails: {str(e)}"
             )
+        
+
+    def nuevo_resumen(self, path_pdf: str):
+        """
+        Crea un nuevo resumen   
+        """ 
+
+        try:
+
+            bancos=self.get_bancos()
+
+            # Leer el contenido del PDF
+            contenido_pdf = self.get_contenido_pdf(path_pdf)
+
+            # Crear un objeto parser
+            parser = Parser(contenido_pdf=contenido_pdf)
+            marca= parser.get_marca_tarjeta()
+
+            banco = parser.get_banco(bancos)
+
+            patrones = self.get_patrones(banco, marca)
+            parser.set_patrones(patrones)
+
+
+            cierre, vencimiento = parser.extract_fechas()
+            df_trans, df_cuotas = parser.get_gastos_cuotas()
+
+            resumen = ResumenDB(
+                        banco_id=banco.id,
+                        marca=marca,
+                        vencimiento=vencimiento,
+                        cierre=cierre, 
+                    )
+
+            # Agregar resumen a la sesión de base de datos
+            self.db.add(resumen)
+
+            for _, row in df_trans.iterrows():
+                fecha_transaccion = row['transaction_date']
+
+                gasto = GastoDB(
+                    fecha=fecha_transaccion,
+                    comercio=row['description'],
+                    monto=self.convert_amount_to_float(row['amount']),
+                    moneda=row['moneda'],
+                    marca=resumen.marca,
+                    resumen=resumen
+                )
+                self.db.add(gasto)
+
+                    
+            for _, row in df_cuotas.iterrows():
+                fecha_transaccion = row['transaction_date']
+                cuotas_parts = row['cuotas'].split("/")
+                numero_cuota_pagada = int(cuotas_parts[0].replace("C.", "").strip())
+                cantidad_cuotas = int(cuotas_parts[1].strip())
+
+                gasto = GastoDB(
+                    fecha=fecha_transaccion,
+                    comercio=row['description'],
+                    monto=float(row['amount'].replace(".", "").replace(",", ".")),
+                    marca=resumen.marca,
+                    moneda=row['moneda'],
+                    resumen=resumen
+                )
+                cuota = CuotaDB(
+                    cantidad_cuotas=cantidad_cuotas,
+                    numero_cuota_pagada=numero_cuota_pagada,
+                    gasto=gasto
+                )
+                self.db.add(cuota)
+
+            self.db.commit()
+
+        except Exception as e:
+            self.db.rollback()  # Añadido rollback en caso de error
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al crear resumen: {str(e)}"
+            )
+        return resumen
+
+
+        
+
+    def get_banco(self, nombre_banco: str):
+        """
+        Obtiene un banco por su nombre
+        """
+        return self.db.query(BancoDB).filter(BancoDB.nombre == nombre_banco).first()
+    
+    def get_bancos(self):
+        """
+        Obtiene un banco por su nombre
+        """
+        return self.db.query(BancoDB).all()
+    

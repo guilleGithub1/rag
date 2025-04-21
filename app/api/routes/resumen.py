@@ -7,7 +7,7 @@ from config.database import DatabaseManager
 from config.mail import MailManager
 from boto3 import client
 from typing import List, Dict
-
+import os
 
 
 router = APIRouter(prefix="/resumenes", tags=["resumen"])
@@ -62,3 +62,27 @@ async def get_mails(mail:MailManager = Depends(MailManager.get_mail_dependency),
         service = ResumenService(mail=mail, db=db)
         archivos = service.get_mails()
         return archivos
+
+@router.post("/agregar_resumen", response_model=List[str], status_code=201)
+async def agregar_resumen(db: Session = Depends(DatabaseManager.get_db_dependency)):
+        service = ResumenService(db=db)
+
+
+        # Aquí puedes agregar la lógica para obtener el resumen y guardarlo en la base de datos
+        # Por ejemplo, si tienes un archivo PDF en una ruta específica:
+        path = './resumenes'
+
+        # Crear una instancia del servicio
+        service = ResumenService(db=db)
+        archivos_procesados = []
+        # Listar todos los archivos en el directorio
+        for archivo in os.listdir(path):
+                archivo_path = os.path.join(path, archivo)
+                if os.path.isfile(archivo_path):
+                        try:
+                                service.nuevo_resumen(path_pdf=archivo_path)
+                                archivos_procesados.append(archivo)
+                        except Exception as e:
+                                # Puedes loggear o manejar errores por archivo aquí si lo deseas
+                                pass
+        return archivos_procesados

@@ -9,6 +9,17 @@ from config.database import Base
 
 # Modelo para la base de datos
 
+
+# Definición de las tablas y relaciones
+
+# ResumenDB: Tabla para almacenar los resúmenes de gastos  
+# GastoDB: Tabla para almacenar los gastos
+# CuotaDB: Tabla para almacenar las cuotas de los gastos
+# BancoDB: Tabla para almacenar la información de los bancos
+# PatronDB: Tabla para almacenar los patrones de búsqueda
+# MailDB: Tabla para almacenar la información de los correos
+# ResumenPdfDB: Tabla para almacenar la información de los PDFs de los resúmenes
+
 class ResumenDB(Base):
     __tablename__ = "resumenes"
 

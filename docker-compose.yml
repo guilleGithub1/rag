@@ -27,6 +27,8 @@ services:
       - POSTGRES_DB=mydatabase
     volumes:
       - postgres_data:/var/lib/postgresql/data  # Persistencia de datos
+    ports:
+      - "5432:5432"
 
   pgadmin:
     image: dpage/pgadmin4:latest  # Usa la imagen oficial de pgAdmin

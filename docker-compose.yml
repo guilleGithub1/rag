@@ -5,6 +5,10 @@ services:
     build: .  # Construye la imagen Docker desde el Dockerfile en el directorio actual
     ports:
       - "8000:8000"  # Mapea el puerto 8000 del contenedor al puerto 8000 del host
+      - "7000:8001"  # Mapea el puerto 8000 del contenedor al puerto 8000 del host
+      - "3000:8002" # Mapea el puerto 8000 del contenedor al puerto 8000 del host
+
+
     depends_on:
       - db  # Espera a que el servicio "db" esté en ejecución
     environment:

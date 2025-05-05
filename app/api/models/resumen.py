@@ -97,6 +97,8 @@ class PatronDB(Base):
     fecha_vencimiento = Column(String)
     descripcion = Column(String)
     ancho_maximo = Column(Integer)
+    ancho_pesos = Column(Integer)
+    ancho_dolares = Column(Integer)
 
 
 class MailDB(Base):

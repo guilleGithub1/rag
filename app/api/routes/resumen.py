@@ -54,7 +54,7 @@ async def agregar_patron(patron: Patron=None,  db: Session = Depends(DatabaseMan
 @router.get("/lineas_pdf", response_model=None, status_code=201)
 async def lineas_pdf(nombre_archivo:str=None):
         service = ResumenService(db=None,s3_client=None)
-        archivos = service.get_lineas_resumen(nombre_archivo='./resumenes/20250201.PDF')
+        archivos = service.get_lineas_resumen(nombre_archivo='./resumenes/01Abr2025_Fridemberg.pdf')
         return archivos
 
 @router.get("/get_mails", response_model=list[Dict], status_code=201)
@@ -70,13 +70,15 @@ async def agregar_resumen(db: Session = Depends(DatabaseManager.get_db_dependenc
 
         # Aquí puedes agregar la lógica para obtener el resumen y guardarlo en la base de datos
         # Por ejemplo, si tienes un archivo PDF en una ruta específica:
-        path = './resumenes'
+        path = './resumenes'#'./resumenes/probar'
+        #path = './resumenes/probar'
 
         # Crear una instancia del servicio
         service = ResumenService(db=db)
         archivos_procesados = []
         # Listar todos los archivos en el directorio
         for archivo in os.listdir(path):
+                print('**********',archivo,'**********')
                 archivo_path = os.path.join(path, archivo)
                 if os.path.isfile(archivo_path):
                         try:

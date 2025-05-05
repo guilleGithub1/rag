@@ -123,7 +123,9 @@ class ResumenService:
                     "transaccion_cuota": patron.transaccion_cuota,
                     "fecha_cierre": patron.fecha_cierre,
                     "fecha_vencimiento": patron.fecha_vencimiento,
-                    "ancho_maximo": patron.ancho_maximo
+                    "ancho_maximo": patron.ancho_maximo, 
+                    "ancho_pesos": patron.ancho_pesos,
+                    "ancho_dolares": patron.ancho_dolares,
                 }
                 
             return {}

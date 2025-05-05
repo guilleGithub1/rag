@@ -21,6 +21,8 @@ class Parser:
         self.cierre_pattern = None
         self.vencimiento_pattern =   None
         self.ancho_maximo = None
+        self.ancho_pesos = None
+        self.ancho_dolares = None
 
         '''
         visa:
@@ -124,7 +126,23 @@ class Parser:
     
 
     def get_moneda(self, line: str) -> str:
-        return "USD" if len(line.strip()) >= self.ancho_maximo else "PESOS"
+            
+            longitud = len(line.strip())
+            print(f"Longitud de la línea: {longitud}")
+            print(line)
+
+            ancho_maximo = self.ancho_maximo
+            #Para brubank
+            if longitud == 199 or longitud == 117 or longitud == 118:
+                return "PESOS"
+            elif longitud == 154 or longitud == 155:
+                return "USD"
+            
+
+            if self.ancho_dolares - ancho_maximo <= longitud <= self.ancho_dolares:
+                return "USD"
+            elif self.ancho_pesos - ancho_maximo <= longitud <= self.ancho_pesos:
+                return "PESOS"
     
     def parse_date(self, date_str: str) -> Date:
         """
@@ -142,13 +160,31 @@ class Parser:
 
         try:
 
+           
+            if re.search('^\s*\d+\s+(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\s*$', date_str, re.IGNORECASE):
+                dia, mes = date_str.strip().split(' ')
+                mes_numero = meses.get(mes.capitalize(), '01')
+                anio = str(datetime.now().year)[-2:]# Anio actual 
+                fecha_str = f"{dia}.{mes_numero}.{anio}"
+                return datetime.strptime(fecha_str, '%d.%m.%y').date()
+
+            #fechas santander rio cierre y vencimiento
+            if re.search('(?P<day>\d{1,2})\s+(?P<month>[A-Z][a-z]{2})\s+(?P<year>\d{2})', date_str, re.IGNORECASE):
+                dia, mes, anio= date_str.strip().split(' ')
+                mes_numero = meses.get(mes.capitalize(), '01')
+
+                fecha_str = f"{dia}.{mes_numero}.{anio}"
+                return datetime.strptime(fecha_str, '%d.%m.%y').date()
+            
             if date_str.isdigit():
-                #fecha_objeto = Date(self.cierre.year, self.cierre.month, int(date_str))
-                #fecha_formateada = fecha_objeto.strftime('%d.%m.%y').date()
-                #return fecha_formateada # Ahora sí devuelve una cadena 'dd.mm.yy'
                 fecha_str = f"{date_str}.{self.cierre.month}.{str(self.cierre.year)[-2:]}"
                 return datetime.strptime(fecha_str, '%d.%m.%y').date()
-                
+            
+            if re.match('^\d{4}\-\d{2}\-\d{2}$', date_str, re.IGNORECASE):
+                anio, mes, dia = date_str.strip().split('-')
+                mes_numero = meses.get(mes, '01')
+                fecha_str = f"{dia}.{mes_numero}.{anio[-2:]}"
+                return datetime.strptime(fecha_str, '%d.%m.%y').date()
 
             # Intentar formato dd.mm.yy
             if '.' in date_str:
@@ -219,10 +255,11 @@ class Parser:
             mastercard_match = re.search(r'(MASTERCARD)', self.contenido, re.IGNORECASE)
             visa_match = re.search(r'(VISA)', self.contenido, re.IGNORECASE)
             amex_match = re.search(r'(AMEX)', self.contenido, re.IGNORECASE)
+            visa_brubank_match = re.search(r'(BRUBANK)', self.contenido, re.IGNORECASE)
             
             if mastercard_match:
                 return "MASTERCARD"  # Retornar siempre en mayúsculas
-            elif visa_match:
+            elif visa_match or visa_brubank_match:
                 return "VISA"
             elif amex_match:
                 return "AMEX"
@@ -246,6 +283,8 @@ class Parser:
         self.cierre_pattern = patrones["fecha_cierre"]
         self.vencimiento_pattern = patrones["fecha_vencimiento"]
         self.ancho_maximo = patrones["ancho_maximo"]
+        self.ancho_pesos = patrones["ancho_pesos"]
+        self.ancho_dolares = patrones["ancho_dolares"]
         return self
 
 
